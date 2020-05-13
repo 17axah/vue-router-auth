@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git"
+    "url": "https://github.com/17axah/vue-router-auth.git"
   },
   "keywords": [
     "vue",
