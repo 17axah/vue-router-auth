@@ -1,5 +1,5 @@
 # vue-router-auth
-Flexible configuration of routes. Closing routes for authorized / unauthorized users.
+Flexible routes setup. Closing routes for authorized / unauthorized users, users with specific roles.
 
 This module is designed for the fact that you already have an authorization system and you need to close the pages for unauthorized / authorized users.
 
@@ -44,8 +44,9 @@ const routes = [
         path: 'login',
         component: () => import('pages/Login.vue'),
         meta: {
-          auth: false,
-          authRedirectTo: { path: '/account' },
+          auth: {
+            access: false,
+          },
         },
       },
     ],
@@ -54,8 +55,9 @@ const routes = [
     path: '/account',
     component: () => import('layouts/Auth.vue'),
     meta: {
-      auth: true,
-      authRedirectTo: { path: '/login' },
+      auth: {
+        access: true,
+      },
     },
     children: [
       {
@@ -72,47 +74,48 @@ const routes = [
 ```
 
 ## :gear: Customization
-**Options**
+### Options
 List of passed options during initialization:
 
 name    | default                                           | description                                                                                                                                                                                                                     | required | type
 --------|---------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------
 router  | -                                                 | app router                                                                                                                                                                                                                      | true     | Object
-guard   | <pre>() => false</pre>                            | Function to check access. Must return a boolean value. It has a context argument: ***to***, ***from***, ***Vue.prototype*** and the context that was passed in the module option. Use read-only context (**must be redefined**) | true     | Function
-routes  | <pre>{ guest: '/public', auth: '/account' }</pre> | Routes for redirecting authorized and unauthorized users                                                                                                                                                                        | false    | Object
-context | <pre>{}</pre>                                     | The data that will be available in the guard function                                                                                                                                                                           | false    | Object
-
-***If the guard function returns true - access to the page is allowed, false - is denied.***
+guard   | <pre>() => false</pre>                            | Function to check access. It has a context argument: ***to***, ***from***, ***Vue.prototype*** and the context that was passed in the module option. Use read-only context (**must be redefined**)                              | true     | Function
+routes  | <pre>{ guest: '/public', auth: '/account' }</pre> | Routes for redirecting authorized, unauthorized users, users with specific roles.                                                                                                                                               | false    | Object
+context | <pre>{}</pre>                                     | The data that will be available in the functions (***guard***, ***redirect***)                                                                                                                                                  | false    | Object
 
 Also, for full work, you need to configure the meta field in routes:
 
-**Route options**
-List of options passed to the meta route field:
+### Route options
+List of options passed to the *meta.auth* route field:
 
-name           | description                                                                                                                                   | type
----------------|-----------------------------------------------------------------------------------------------------------------------------------------------|--------
-auth           | A flag indicating the closure of the route. ***true*** - only authorized users are allowed, ***false*** - only allowed for unauthorized users | Boolean
-authRedirectTo | route or function returning a route.                                                                                                          | Function or Object or String
-authGuard      | individual ***guard*** function for a specific route                                                                                          | Object
+name     | description                                          | type
+---------|------------------------------------------------------|--------
+access   | A flag indicating the closure of the route.          | Boolean or String
+redirect | route or function returning a route.                 | Function or Object or String
+guard    | individual ***guard*** function for a specific route | Function
 
-***functions authRedirectTo and authGuard have the same arguments as the **guard** function.***
+***functions redirect and guard have the same arguments as the main guard function.***
 
-You can set the check function and routes for redirection both for the entire application as a whole and for individual routes.
-<br>
-<br>
-If the auth flag is set on the current or parent route (the current route is in priority), then the check will be performed using the authGuard function.
-If it is not specified in the current and parent routes (the priority is the same) then the check will occur using the ***guard*** function.
-<br>
-<br>
-If the user is logged in and tries to switch to the route with the auth: false flag set, then with the correct guard function,
-redirection to the route from the authRedirectTo parameter set in the current or parent route (current priority) will occur.
-If the authRedirectTo parameter is not set for the routes, the route from the options of the routes.auth module will be used.
-And if a non-authorized user goes to a route with the auth: true flag, he will be redirected to authRedirectTo or routes.guest.
+### Description
+To close the route for unauthorized users, you must specify true in the *meta.auth.access* route field.
+To close the route for authorized users, set the *meta.auth.access* field to false.
+In this case, the *guard* function should return true for authorized users and false for unauthorized users.
+To configure user redirection, use the *routes* option.
+*guest* - the route where the unauthorized user will be redirected, *auth* - the authorized user.
+You can also specify the redirection route individually for each route in the *meta.auth.redirect* field.
+The guard and redirect functions in the arguments receive a context, to expand it use the *context* option.
+
+#### Using roles
+In order to close the route for a specific role in the *meta.auth.access* route field, you must specify the role name,
+in this case, the *guard* function should return a string with the name of this role, otherwise redirection will occur.
+To configure redirection for a specific role, you need to add a field to the *routes* option with the name of this role. 
+
 
 ### :eyes: Examples
 ```js
 import { middleware } from 'vue-router-auth';
-import auth from 'auth-service'; // for example
+import auth from 'auth-module'; // for example
 
 const options = {
   router,
@@ -120,31 +123,35 @@ const options = {
   context: {
     auth,
   },
-  routes: {
-     guest: { path: '/' },
-     auth: { path: '/office' },
-  },
 };
 
 router.beforeEach(middleware(options));
 ```
+
 ```js
 const routes = [
   {
-    path: 'login',
-    component: () => import('pages/Login.vue'),
-    meta: {
-      auth: false,
-      authRedirectTo: { path: '/account' },
-      authGuard: ({ auth }) => !auth.loggedIn,
-    },
+    path: '/',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      {
+        path: 'login',
+        component: () => import('pages/Login.vue'),
+        meta: {
+          auth: {
+            access: false,
+          },
+        },
+      },
+    ],
   },
   {
     path: '/account',
     component: () => import('layouts/Auth.vue'),
     meta: {
-      auth: true,
-      authRedirectTo: { path: '/login' },
+      auth: {
+        access: true,
+      },
     },
     children: [
       {
@@ -154,12 +161,62 @@ const routes = [
       {
         path: 'settings',
         component: () => import('pages/Settings.vue'),
+        meta: {
+          auth: {
+            access: false,
+          },
+        },
       },
+    ],
+  },
+];
+```
+In the example above, the */login* route will be closed to authorized users.
+A route */account* will be closed to unauthorized users,
+but the route */account* */settings* will be open to unauthorized users and closed to authorized users.
+
+#### Using roles:
+```js
+import { middleware } from 'vue-router-auth';
+import auth from 'auth-module'; // for example
+
+const options = {
+  router,
+  guard: ({ auth }) => auth.user.role, // "admin"
+  routes: {
+    admin: '/route-for-not-admin',
+  },
+  context: {
+    auth,
+  },
+};
+
+router.beforeEach(middleware(options));
+```
+```js
+const routes = [
+  // ...
+  {
+    path: '/account',
+    component: () => import('layouts/Auth.vue'),
+    children: [
       {
         path: 'payments',
-        component: () => import('pages/Payments.vue'),
+        component: () => import('pages/Account.vue'),
         meta: {
-          auth: false,
+          auth: {
+            access: 'simple-role',
+            redirect: '/any-route',
+          },
+        },
+      },
+      {
+        path: 'settings',
+        component: () => import('pages/Settings.vue'),
+        meta: {
+          auth: {
+            access: 'admin',
+          },
         },
       },
     ],
