@@ -7,6 +7,30 @@ const defaults = {
   },
 };
 
+function getRouteByMetaKey(route, key) {
+  const matched = [route, ...route.matched];
+
+  return matched.find((r) => r.meta.auth && typeof r.meta.auth[key] !== 'undefined');
+}
+
+function getMetaValue(route, key) {
+  const metaRoute = getRouteByMetaKey(route, key);
+
+  return metaRoute ? metaRoute.meta.auth[key] : null;
+}
+
+function verify(route, context, defaultGuard) {
+  const routeGuard = getMetaValue(route, 'guard');
+
+  return routeGuard ? routeGuard(context) : defaultGuard(context);
+}
+
+function getRouteTo(route, context) {
+  const redirect = getMetaValue(route, 'redirect');
+
+  return typeof redirect === 'function' ? redirect(context) : redirect;
+}
+
 export function middleware({
   router,
   guard = () => false,
@@ -14,35 +38,25 @@ export function middleware({
   context,
 }) {
   return (to, from, next) => {
-    const route = to.matched.find((r) => typeof r.meta.auth === 'boolean');
+    const ctx = { to, from, ...Vue.prototype, ...context };
+    const closureRoute = getRouteByMetaKey(to, 'access');
+    const access = getMetaValue(to, 'access');
     const redirectRoutes = { ...defaults.routes, ...routes };
-    const ctx = {
-      to,
-      from,
-      ...Vue.prototype,
-      ...context,
-    };
-
-    function getRouteTo() {
-      const meta = to.meta.authRedirectTo || route.meta.authRedirectTo;
-
-      return typeof meta === 'function' ? meta(ctx) : meta;
-    }
-
-    function access() {
-      const authGuard = to.meta.authGuard || route.meta.authGuard;
-
-      return authGuard ? authGuard(ctx) : guard(ctx);
-    }
+    const routeToCache = getRouteTo(to, ctx);
+    const verifyCache = verify(to, ctx, guard);
 
     const actions = [
       {
-        condition: route && route.meta.auth && !access(),
-        callback: () => router.replace(getRouteTo() || redirectRoutes.guest),
+        condition: closureRoute && typeof access === 'string' && access !== verifyCache,
+        callback: () => router.replace(routeToCache || redirectRoutes[access]),
       },
       {
-        condition: route && !route.meta.auth && access(),
-        callback: () => router.replace(getRouteTo() || redirectRoutes.auth),
+        condition: closureRoute && access && !verifyCache,
+        callback: () => router.replace(routeToCache || redirectRoutes.guest),
+      },
+      {
+        condition: closureRoute && !access && verifyCache,
+        callback: () => router.replace(routeToCache || redirectRoutes.auth),
       },
       {
         condition: true,
