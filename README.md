@@ -2,6 +2,13 @@
 Flexible routes setup. Closing routes for authorized / unauthorized users, users with specific roles.
 
 This module is designed for the fact that you already have an authorization system and you need to close the pages for unauthorized / authorized users.
+<br>
+<br>
+If you find an error, incorrect behavior please open the corresponding
+[issue](https://github.com/17axah/vue-router-auth/issues). <br>
+Please also rate this [repository](https://github.com/17axah/vue-router-auth). :blush:
+
+<hr>
 
 ## :book: Usage
 
