@@ -1,6 +1,6 @@
 {
   "name": "vue-router-auth",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Flexible configuration of routes. Closing routes for authorized / unauthorized users.",
   "main": "index.js",
   "repository": {
